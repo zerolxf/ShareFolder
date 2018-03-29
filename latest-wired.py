@@ -7,24 +7,21 @@ import os
 import random
 
 # CONFIG
-server = '10.254.7.4'
-username='2014xxxx'
-password='密码'
+server = "10.254.7.4"
+#注意下面输入学好和密码
+username = "xxxxxx"
+password = "xxxxxx"
+host_name = "LIYUANYUAN"
+host_os = "8089D"
+host_ip = "10.30.22.17" 
+dhcp_server = "202.202.0.50"
+mac = 0xb888e3051680
 CONTROLCHECKSTATUS = '\x20'
-ADAPTERNUM = '\x05'
-host_ip = '10.251.108.34'
-IPDOG = '\x01'
-host_name = 'DRCOMFUCKER'
-PRIMARY_DNS = '223.5.5.5'
-dhcp_server = '10.253.7.77'
-AUTH_VERSION = '\x0a\x00'
-mac = 0x28d244c656a3
-host_os = 'WINDIAOS'
+ADAPTERNUM = '\x01'
 KEEP_ALIVE_VERSION = '\xdc\x02'
+AUTH_VERSION = '\x0a\x00'
+IPDOG = '\x01'
 # CONFIG_END
-
-nic_name = '' #Indicate your nic, e.g. 'eth0.2'.nic_name
-bind_ip = '0.0.0.0'
 
 class ChallengeException (Exception):
     def __init__(self):
@@ -34,45 +31,24 @@ class LoginException (Exception):
     def __init__(self):
         pass
 
-def bind_nic():
-    try:
-        import fcntl
-        def get_ip_address(ifname):
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            return socket.inet_ntoa(fcntl.ioctl(
-                s.fileno(),
-                0x8915,  # SIOCGIFADDR
-                struct.pack('256s', ifname[:15])
-            )[20:24])
-        return get_ip_address(nic_name)
-    except ImportError as e:
-        print('Indicate nic feature need to be run under Unix based system.')
-        return '0.0.0.0'
-    except IOError as e:
-        print(nic_name + 'is unacceptable !')
-        return '0.0.0.0'
-    finally:
-        return '0.0.0.0'
-
-if nic_name != '':
-    bind_ip = bind_nic()
-
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-s.bind((bind_ip, 61440))
+s.bind(("0.0.0.0", 61440))
 
 s.settimeout(3)
 SALT = ''
 IS_TEST = True
 # specified fields based on version
 CONF = "/etc/drcom.conf"
+if IS_TEST:
+    CONF = ''
 UNLIMITED_RETRY = True
 EXCEPTION = False
 DEBUG = False #log saves to file
-LOG_PATH = '/data/python/usr/bin/drcom_client.log'
+LOG_PATH = '/var/log/drcom_client.log'
 if IS_TEST:
     DEBUG = True
-    LOG_PATH = '/data/python/usr/bin/drcom_client.log'
+    LOG_PATH = 'drcom_client.log'
 
 
 def log(*args, **kwargs):
@@ -267,7 +243,7 @@ def mkpkt(salt, usr, pwd, mac):
     data += IPDOG
     data += '\x00'*4 #delimeter
     data += host_name.ljust(32, '\x00')
-    data += ''.join([chr(int(i)) for i in PRIMARY_DNS.split('.')]) #primary dns
+    data += '\x08\x08\x08\x08' #primary dns: 8.8.8.8
     data += ''.join([chr(int(i)) for i in dhcp_server.split('.')]) #DHCP server
     data += '\x00\x00\x00\x00' #secondary dns:0.0.0.0
     data += '\x00' * 8 #delimeter
@@ -314,9 +290,8 @@ def login(usr, pwd, svr):
             else:
                 log('[login] login failed.')
                 if IS_TEST:
-                    time.sleep(3)
-                else:
-                    time.sleep(30)
+                    sys.exit(0)
+                time.sleep(30)
                 continue
         else:
             if i >= 5 and UNLIMITED_RETRY == False :
@@ -369,7 +344,6 @@ def main():
         daemon()
         execfile(CONF, globals())
     log("auth svr:"+server+"\nusername:"+username+"\npassword:"+password+"\nmac:"+str(hex(mac)))
-    log(bind_ip)
     while True:
       try:
         package_tail = login(username, password, server)
